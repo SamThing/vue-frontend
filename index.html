@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Desafio Vue-Js Page</title>
+        <script src="https://unpkg.com/vue/dist/vue.js"></script>
+        <script src="https://unpkg.com/vue-router/dist/vue-router.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/axios@0.12.0/dist/axios.min.js"></script>
+        <script src="https://unpkg.com/vuex"></script>
+
+        <style type="text/css">
+
+            body {
+                padding:0px;
+                margin:0px;
+                font-family: Arial, Helvetica, sans-serif;
+            }
+
+            form {
+                border: 3px solid #f1f1f1;
+            }
+
+            input{
+                width: 100%;
+                padding: 12px 20px;
+                margin: 8px 0;
+                display: inline-block;
+                border: 1px solid #ccc;
+                box-sizing: border-box;
+            }
+
+            button {
+                background-color: #4CAF50;
+                color: white;
+                padding: 14px 20px;
+                margin: 8px 0;
+                border: none;
+                cursor: pointer;
+                width: 100%;
+            }
+
+            button:hover {
+                opacity: 0.8;
+            }
+
+            .container {
+                padding: 16px;
+            }
+
+            .center {
+                margin: auto;
+                margin-top: 10%;
+                width: 50%;
+                border: 3px solid green;
+            }
+        
+            .menu ul {
+                list-style-type: none;
+                margin: 0;
+                padding: 0;
+                overflow: hidden;
+                background-color: #333;
+            }
+
+            .menu li {
+                float: left;
+            }
+
+            .menu li a {
+                display: inline-block;
+                color: white;
+                text-align: center;
+                padding: 14px 16px;
+                text-decoration: none;
+            }
+
+            .menu li a:hover {
+                background-color: #111;
+            }
+
+            .active {
+                background-color: red;
+            }
+
+            table {
+                font-family: arial, sans-serif;
+                border-collapse: collapse;
+                width: 80%;
+                margin-top: 1%;
+                margin-bottom: 1%;
+                border: 3px solid green;
+            }
+
+            td, th {
+                border: 1px solid #dddddd;
+                text-align: left;
+                padding: 8px;
+            }
+
+            tr:nth-child(even) {
+               background-color: #dddddd;
+            }
+        </style>
+
+    </head>
+
+    <body>
+        <div id="app">
+            <div class="menu">
+                <ul>
+                    <div v-if="logged">
+                        <li><a @click="logout">Logout</a></li>
+                    </div>
+                    <div v-else>
+                        <li><a @click="login">Login</a></li>
+                    </div>
+                </ul>
+            </div>
+            <router-view/></router-view>
+        </div>
+    </body>
+
+    <script type="text/x-template" id="checkbox-template">
+        <div class="checkbox-wrapper" @click="check">
+          <div :class="{ checkbox: true, checked: checked }"></div>
+          <div class="title"></div>
+        </div>
+      </script>
+
+    <script>
+        const login = new Vuex.Store({
+            state: {
+                token: '',
+                logged: false
+            },
+            mutations: {
+                login (state, requestBody) {
+                    axios.post('http://localhost:3000/login', requestBody, {headers: { 'Content-Type': 'application/x-www-form-urlencoded' }})
+                        .then(function (response) {
+                            var answer = response
+                            state.logged = true
+                            state.token = response.data.token
+                        })
+                        .catch(function (error) {
+                            alert('Error! Could not reach the API. ' + error)
+                        })
+                },
+                logout (state){
+                    state.logged = false
+                    state.token = ''
+                }
+            }
+        })
+
+        const LoginPage = { 
+            data: function() {
+                return {
+                    password: '',
+                    username: ''
+                }
+            },
+            methods: {
+                login(){
+                    if(this.username == '' || this.password == ''){
+                        alert("Campo vazio") /*/
+                        const requestBody = "user=luiz&pwd=123"
+                        login.commit("login", requestBody)
+                        //*/
+                    } else {
+                        const requestBody = "user=" + this.username + "&" + "pwd=" + this.password
+                        login.commit("login", requestBody)
+                    }
+                }
+            },
+            template: `
+            <form class="center">
+                <div class="container">
+                    <label for="uname"><b>Username</b></label>
+                    <input v-model="username" type="text" placeholder="Enter Username">
+
+                    <label for="psw"><b>Password</b></label>
+                    <input v-model="password" type="password" placeholder="Enter Password">
+                        
+                    <button @click="login">Login</button>
+                </div>
+            </form>
+        `
+        }
+        
+        const FuncionariosPage = {
+            data: function() {
+                return {
+                    funcionarios: [],
+                    inited: false
+                }
+            },
+            mounted(){
+                var me = this
+                axios.get('http://localhost:3000/funcionarios', {headers: {'x-access-token': login.state.token}})
+                        .then(function (response) {
+                            me.funcionarios = response.data
+                            me.inited = true
+                        })
+                        .catch(function (error) {
+                            if(error.status == 401){
+                                alert("Não autorizado. Logue novamente")
+                                login.commit("logout")
+                            } else {
+                                alert('Error! Could not reach the API. ' + JSON.stringify(error))
+                            }
+                        })
+            },
+            template: `
+            <div align="center" v-if="inited">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Nome</th>
+                            <th>CPF</th>
+                            <th>Cargo</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <funcionario
+                            v-for="item in funcionarios"
+                            v-bind:funcionario="item"
+                            v-bind:key="item.id"
+                        ></funcionario>
+                    </tbody>
+                </table>
+            </div>
+            ` 
+        }
+
+        Vue.component('funcionario', {
+            props: ['funcionario'],
+            template: `
+                <tr>
+                    <td>{{ funcionario.nome }}</td>
+                    <td>{{ funcionario.cpf }}</td>
+                    <td>{{ funcionario.cargo }}</td>
+                </tr>`
+        })
+
+        const routes = [
+            { path: '/login', component: LoginPage},
+            { path: '/funcionarios', component: FuncionariosPage }
+        ]
+        
+        const router = new VueRouter({ routes })
+
+        const app = new Vue({ 
+            el: '#app',
+            router,
+            login,
+            computed: {
+                logged (){
+                    if (!login.state.logged){
+                        router.push({ path: '/login' })
+                    } else {
+                        router.push({ path: '/funcionarios' })
+                    }
+                    return login.state.logged
+                }
+            },
+            methods: {
+                login () {
+                    router.push({ path: '/login' })
+                },
+                logout () {
+                    login.commit('logout')
+                },
+                funcionarios (){
+                    if (!login.state.logged){
+                        router.push({ path: '/login' })
+                    } else {
+                        router.push({ path: '/funcionarios' })
+                    }
+                }
+            },
+            mounted: function () {
+                if (!login.state.logged){
+                    router.push({ path: '/login' })
+                } else {
+                    router.push({ path: '/funcionarios' })
+                }
+            },
+            watch: {
+                '$route' (to, from) {
+                    if (!login.state.logged && to.path != "/login")
+                        router.push({ path: '/login' })
+                }
+            }
+        })
+
+    </script>
+</html>
